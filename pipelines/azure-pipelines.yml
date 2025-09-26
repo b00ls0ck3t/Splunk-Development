@@ -1,0 +1,68 @@
+trigger:
+- main
+
+pool: 
+  name: 'splunk-dev-pool'
+
+parameters:
+- name: target_component
+  displayName: 'Deploy to Component'
+  type: string
+  default: 'splunk_dev'
+  values:
+  - splunk_dev
+  - deployment_server
+  - all_components
+
+- name: restart_services
+  displayName: 'Restart Splunk after deployment'
+  type: boolean
+  default: true
+
+variables:
+  DOCKER_COMPOSE_PATH: '/home/alejandro/splunk-docker-dev'
+  DEPLOYMENT_PATH: '/opt/deployments/splunk'
+
+stages:
+- stage: Deploy
+  displayName: 'Deploy Configuration'
+  jobs:
+  - job: DeployJob
+    displayName: 'Deploy to ${{ parameters.target_component }}'
+    steps:
+    - checkout: self
+
+    - script: |
+        echo "Deploying to: ${{ parameters.target_component }}"
+        echo "Restart services: ${{ parameters.restart_services }}"
+      displayName: 'Deployment Info'
+
+    - ${{ if eq(parameters.target_component, 'splunk_dev') }}:
+      - script: |
+          # Copy apps to Splunk container volumes
+          sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
+          sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
+          echo "Deployed to Splunk dev container"
+        displayName: 'Deploy to Splunk Dev'
+
+    - ${{ if eq(parameters.target_component, 'all_components') }}:
+      - script: |
+          # Deploy to all targets
+          sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
+          sudo cp -r deployment-server/* $(DEPLOYMENT_PATH)/
+          sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
+          echo "Deployed to all components"
+        displayName: 'Deploy to All Components'
+
+    - ${{ if eq(parameters.restart_services, true) }}:
+      - script: |
+          cd $(DOCKER_COMPOSE_PATH)
+          docker-compose restart splunk
+          sleep 30
+          echo "Splunk services restarted"
+        displayName: 'Restart Splunk Services'
+
+    - script: |
+        # Validate deployment
+        docker exec splunk-dev /opt/splunk/bin/splunk list app -auth admin:ChangeMePlease123!
+      displayName: 'Validate Deployment'
