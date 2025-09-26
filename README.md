@@ -5,16 +5,17 @@ This repository contains all Splunk infrastructure and application configuration
 ## Architecture Principles
 
 ### Separation of Concerns
-- **Infrastructure Level**: Manages data flow, storage, and system settings
-- **Application Level**: Manages data interpretation, parsing, and presentation
-- **Deployment Level**: Manages configuration distribution
+- Infrastructure Level: Manages data flow, storage, and system settings
+- Application Level: Manages data interpretation, parsing, and presentation
+- Deployment Level: Manages configuration distribution
 
 ### Configuration Hierarchy
-1. **System/Cluster Level**: Index definitions, server settings, cluster configuration
-2. **Deployment Server**: Configuration distribution to server classes
-3. **Applications**: Data parsing, dashboards, searches, alerts
+1. System/Cluster Level: Index definitions, server settings, cluster configuration
+2. Deployment Server: Configuration distribution to server classes
+3. Applications: Data parsing, dashboards, searches, alerts
 
 ## Repository Structure
+
 splunk-config/
 ├── indexer-cluster/           # Indexer cluster management
 │   ├── master-node/
