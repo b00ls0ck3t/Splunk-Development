@@ -31,18 +31,16 @@ stages:
   - job: DeployJob
     displayName: 'Deploying to ${{ parameters.target_component }}'
     steps:
-    - checkout: self
-
     - script: |
         echo "Shutting down existing Splunk stack..."
         cd $(DOCKER_PROJECT_PATH)
-        docker compose down || echo "No existing stack found. Continuing..."
+        docker compose down --remove-orphans || echo "No existing stack found. Continuing..."
       displayName: '1. Shutdown Existing Docker Stack'
 
-    - script: |
-        echo "Deploying latest docker-compose.yml..."
-        cp -f docker-compose.yml $(DOCKER_PROJECT_PATH)/docker-compose.yml
-      displayName: '2. Deploy Docker Compose File'
+    - checkout: self
+      clean: true
+      path: $(DOCKER_PROJECT_PATH)
+      displayName: '2. Checkout Repository to Project Directory'
 
     - script: |
         echo "Launching new Splunk stack..."
@@ -55,7 +53,7 @@ stages:
           echo "Deploying Splunk configurations..."
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 412:412 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
         displayName: '4. Deploy Splunk Configurations'
         env:
           AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
