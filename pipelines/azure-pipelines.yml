@@ -19,98 +19,69 @@ parameters:
   type: boolean
   default: true
 
-# MODIFICATION: Corrected the syntax for including a variable group and other variables.
-variables:
-- group: Agent-Credentials
-- name: DOCKER_COMPOSE_PATH
-  value: '/opt/splunk-docker-dev'
-- name: DEPLOYMENT_PATH
-  value: '/opt/deployments/splunk'
-
 stages:
 - stage: Deploy
-  displayName: 'Deploy Configuration'
+  displayName: 'Deploy and Manage Splunk Stack'
+  variables:
+  - group: Agent-Credentials
+  - name: DOCKER_PROJECT_PATH
+    value: '/opt/splunk-docker-dev'
+
   jobs:
   - job: DeployJob
-    displayName: 'Deploy to ${{ parameters.target_component }}'
+    displayName: 'Deploying to ${{ parameters.target_component }}'
     steps:
     - checkout: self
 
     - script: |
-        echo "Deploying to: ${{ parameters.target_component }}"
-        echo "Restart services: ${{ parameters.restart_services }}"
-      displayName: 'Deployment Info'
+        echo "Shutting down existing Splunk stack..."
+        cd $(DOCKER_PROJECT_PATH)
+        docker compose down || echo "No existing stack found. Continuing..."
+      displayName: '1. Shutdown Existing Docker Stack'
+
+    - script: |
+        echo "Deploying latest docker-compose.yml..."
+        cp -f docker-compose.yml $(DOCKER_PROJECT_PATH)/docker-compose.yml
+      displayName: '2. Deploy Docker Compose File'
+
+    - script: |
+        echo "Launching new Splunk stack..."
+        cd $(DOCKER_PROJECT_PATH)
+        docker compose up -d
+      displayName: '3. Launch New Docker Stack'
 
     - ${{ if eq(parameters.target_component, 'splunk_dev') }}:
       - script: |
-          echo "Deploying apps to Splunk dev container..."
-          
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
-          
-          echo "Deployed to Splunk dev container successfully"
-        displayName: 'Deploy to Splunk Dev'
+          echo "Deploying Splunk configurations..."
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
+        displayName: '4. Deploy Splunk Configurations'
         env:
           AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
-
-    - ${{ if eq(parameters.target_component, 'all_components') }}:
-      - script: |
-          echo "Deploying to all targets..."
-          
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
-          
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S mkdir -p $(DEPLOYMENT_PATH)
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DEPLOYMENT_PATH)/
-          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R azureagent:azureagent $(DEPLOYMENT_PATH)
-          
-          echo "Deployed to all components successfully"
-        displayName: 'Deploy to All Components'
-        env:
-          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
-
-    - ${{ if eq(parameters.restart_services, true) }}:
-      - script: |
-          echo "Restarting Splunk services..."
-          cd $(DOCKER_COMPOSE_PATH)
-          
-          docker-compose restart splunk
-          
-          echo "Waiting for Splunk to start..."
-          sleep 60
-          
-          echo "Splunk services restarted successfully"
-        displayName: 'Restart Splunk Services'
 
     - script: |
-        echo "Validating deployment..."
-        cd $(DOCKER_COMPOSE_PATH)
+        echo "Performing health check on Splunk container..."
+        timeout=300
+        interval=10
+        elapsed=0
         
-        # Check if container is running
-        if docker ps | grep -q splunk-dev; then
-          echo "✓ Splunk container is running"
-        else
-          echo "✗ Splunk container is not running"
-          exit 1
-        fi
+        while [ $elapsed -lt $timeout ]; do
+          status=$(docker ps --filter "name=splunk-dev" --format "{{.Status}}")
+          if [[ $status == *" (healthy)"* ]]; then
+            echo "Splunk container is healthy."
+            echo "Validating deployment..."
+            docker exec splunk-dev ls -la /opt/splunk/etc/apps/ | grep custom_logging && echo "custom_logging app deployed" || (echo "custom_logging not found" && exit 1)
+            docker exec splunk-dev ls -la /opt/splunk/etc/system/local/ | grep indexes.conf && echo "indexes.conf deployed" || (echo "indexes.conf not found" && exit 1)
+            echo "Deployment validation completed successfully."
+            exit 0
+          fi
+          echo "Waiting for Splunk to become healthy... (Status: $status)"
+          sleep $interval
+          elapsed=$((elapsed + interval))
+        done
         
-        # Wait a bit more and check web interface
-        sleep 30
-        if curl -s http://localhost:8000 > /dev/null; then
-          echo "✓ Splunk web interface is accessible"
-        else
-          echo "✗ Splunk web interface is not responding"
-          exit 1
-        fi
-        
-        # Check deployed files
-        echo "Checking deployed apps:"
-        docker exec splunk-dev ls -la /opt/splunk/etc/apps/ | grep custom_logging && echo "✓ custom_logging app deployed" || echo "✗ custom_logging not found"
-        
-        echo "Checking deployed indexes:"
-        docker exec splunk-dev ls -la /opt/splunk/etc/system/local/ | grep indexes.conf && echo "✓ indexes.conf deployed" || echo "✗ indexes.conf not found"
-        
-        echo "Deployment validation completed"
-      displayName: 'Validate Deployment'
+        echo "Timeout reached. Splunk container did not become healthy."
+        docker logs splunk-dev
+        exit 1
+      displayName: '5. Health Check and Validate Deployment'
