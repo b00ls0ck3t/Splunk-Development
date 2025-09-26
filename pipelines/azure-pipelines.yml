@@ -20,7 +20,10 @@ parameters:
   default: true
 
 variables:
-  DOCKER_COMPOSE_PATH: '/home/alejandro/splunk-docker-dev'
+# MODIFICATION: Link to the variable group containing the secret password
+- group: Agent-Credentials
+# MODIFICATION: Update the path to the new directory location
+  DOCK-ER_COMPOSE_PATH: '/opt/splunk-docker-dev'
   DEPLOYMENT_PATH: '/opt/deployments/splunk'
 
 stages:
@@ -41,34 +44,35 @@ stages:
       - script: |
           echo "Deploying apps to Splunk dev container..."
           
-          # Deploy apps to Splunk container volumes
-          sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
-          
-          # Deploy indexes to system level
-          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
-          
-          # Fix ownership for Splunk container
-          sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
+          # MODIFICATION: Pipe the password to sudo for each command
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
           
           echo "Deployed to Splunk dev container successfully"
         displayName: 'Deploy to Splunk Dev'
+        # MODIFICATION: Map the secret to an environment variable for this script
+        env:
+          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.target_component, 'all_components') }}:
       - script: |
           echo "Deploying to all targets..."
           
-          # Deploy to Splunk container
-          sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
-          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
-          sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
+          # MODIFICATION: Pipe the password to sudo for each command
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
           
-          # Deploy to deployment zones
-          sudo mkdir -p $(DEPLOYMENT_PATH)
-          sudo cp -r deployment-server/* $(DEPLOYMENT_PATH)/
-          sudo chown -R azureagent:azureagent $(DEPLOYMENT_PATH)
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S mkdir -p $(DEPLOYMENT_PATH)
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DEPLOYMENT_PATH)/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R azureagent:azureagent $(DEPLOYMENT_PATH)
           
           echo "Deployed to all components successfully"
         displayName: 'Deploy to All Components'
+        # MODIFICATION: Map the secret to an environment variable for this script
+        env:
+          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
