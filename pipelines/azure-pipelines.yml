@@ -39,30 +39,77 @@ stages:
 
     - ${{ if eq(parameters.target_component, 'splunk_dev') }}:
       - script: |
-          # Copy apps to Splunk container volumes
+          echo "Deploying apps to Splunk dev container..."
+          
+          # Deploy apps to Splunk container volumes
           sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
+          
+          # Deploy indexes to system level
+          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
+          
+          # Fix ownership for Splunk container
           sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
-          echo "Deployed to Splunk dev container"
+          
+          echo "Deployed to Splunk dev container successfully"
         displayName: 'Deploy to Splunk Dev'
 
     - ${{ if eq(parameters.target_component, 'all_components') }}:
       - script: |
-          # Deploy to all targets
+          echo "Deploying to all targets..."
+          
+          # Deploy to Splunk container
           sudo cp -r apps/* $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/apps/
-          sudo cp -r deployment-server/* $(DEPLOYMENT_PATH)/
+          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/system/local/
           sudo chown -R 41812:41812 $(DOCKER_COMPOSE_PATH)/volumes/splunk-etc/
-          echo "Deployed to all components"
+          
+          # Deploy to deployment zones
+          sudo mkdir -p $(DEPLOYMENT_PATH)
+          sudo cp -r deployment-server/* $(DEPLOYMENT_PATH)/
+          sudo chown -R azureagent:azureagent $(DEPLOYMENT_PATH)
+          
+          echo "Deployed to all components successfully"
         displayName: 'Deploy to All Components'
 
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
+          echo "Restarting Splunk services..."
           cd $(DOCKER_COMPOSE_PATH)
+          
           docker-compose restart splunk
-          sleep 30
-          echo "Splunk services restarted"
+          
+          echo "Waiting for Splunk to start..."
+          sleep 60
+          
+          echo "Splunk services restarted successfully"
         displayName: 'Restart Splunk Services'
 
     - script: |
-        # Validate deployment
-        docker exec splunk-dev /opt/splunk/bin/splunk list app -auth admin:ChangeMePlease123!
+        echo "Validating deployment..."
+        cd $(DOCKER_COMPOSE_PATH)
+        
+        # Check if container is running
+        if docker ps | grep -q splunk-dev; then
+          echo "✓ Splunk container is running"
+        else
+          echo "✗ Splunk container is not running"
+          exit 1
+        fi
+        
+        # Wait a bit more and check web interface
+        sleep 30
+        if curl -s http://localhost:8000 > /dev/null; then
+          echo "✓ Splunk web interface is accessible"
+        else
+          echo "✗ Splunk web interface is not responding"
+          exit 1
+        fi
+        
+        # Check deployed files
+        echo "Checking deployed apps:"
+        docker exec splunk-dev ls -la /opt/splunk/etc/apps/ | grep custom_logging && echo "✓ custom_logging app deployed" || echo "✗ custom_logging not found"
+        
+        echo "Checking deployed indexes:"
+        docker exec splunk-dev ls -la /opt/splunk/etc/system/local/ | grep indexes.conf && echo "✓ indexes.conf deployed" || echo "✗ indexes.conf not found"
+        
+        echo "Deployment validation completed"
       displayName: 'Validate Deployment'
