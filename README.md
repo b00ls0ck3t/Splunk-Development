@@ -4,68 +4,78 @@ This repository contains all Splunk infrastructure and application configuration
 
 ## Architecture Principles
 
-### Separation of Concerns
+**Separation of Concerns:**
 - Infrastructure Level: Manages data flow, storage, and system settings
-- Application Level: Manages data interpretation, parsing, and presentation
+- Application Level: Manages data interpretation, parsing, and presentation  
 - Deployment Level: Manages configuration distribution
-
-### Configuration Hierarchy
-1. System/Cluster Level: Index definitions, server settings, cluster configuration
-2. Deployment Server: Configuration distribution to server classes
-3. Applications: Data parsing, dashboards, searches, alerts
 
 ## Repository Structure
 
-splunk-config/
-├── indexer-cluster/           # Indexer cluster management
-│   ├── master-node/
-│   │   ├── indexes.conf      # All index definitions
-│   │   ├── server.conf       # Indexer cluster settings
-│   │   └── outputs.conf      # Inter-cluster communication
-│   └── peer-nodes/
-│       └── server.conf       # Peer-specific settings
-│
-├── search-head-cluster/       # Search head cluster management
-│   ├── deployer/
-│   │   └── apps/            # Apps deployed to all search heads
-│   └── members/
-│       ├── server.conf      # Search head settings
-│       └── distsearch.conf  # Distributed search config
-│
-├── deployment-server/         # Forwarder and base configuration management
-│   ├── serverclass.conf     # Server class definitions
-│   └── apps/
-│       ├── _cluster/        # Cluster-wide configurations
-│       ├── _indexer_base/   # Base config for all indexers
-│       │   └── default/
-│       │       └── indexes.conf
-│       └── _forwarder_base/ # Base config for all forwarders
-│           └── default/
-│               ├── outputs.conf
-│               └── deploymentclient.conf
-│
-├── apps/                      # Splunk applications (parsing, dashboards, searches)
-│   ├── custom_logging/
-│   │   ├── default/
-│   │   │   ├── app.conf     # App metadata
-│   │   │   ├── props.conf   # Data parsing rules
-│   │   │   ├── transforms.conf # Field extractions
-│   │   │   └── savedsearches.conf # Saved searches and alerts
-│   │   ├── local/           # Environment-specific overrides
-│   │   └── metadata/
-│   │       └── local.meta   # Permissions and sharing
-│   └── ta_examples/         # Technology Add-ons
+### Infrastructure Components
+
+**indexer-cluster/**
+- master-node/indexes.conf (All index definitions)
+- master-node/server.conf (Indexer cluster settings)
+- peer-nodes/server.conf (Peer-specific settings)
+
+**search-head-cluster/**
+- deployer/apps/ (Apps deployed to all search heads)
+- members/server.conf (Search head settings)
+- members/distsearch.conf (Distributed search config)
+
+**deployment-server/**
+- serverclass.conf (Server class definitions)
+- apps/_cluster/ (Cluster-wide configurations)
+- apps/_indexer_base/default/indexes.conf (Base indexer config)
+- apps/_forwarder_base/default/outputs.conf (Base forwarder config)
+
+### Application Components
+
+**apps/custom_logging/**
+- default/app.conf (App metadata)
+- default/props.conf (Data parsing rules)
+- default/transforms.conf (Field extractions)
+- local/ (Environment-specific overrides)
+- metadata/local.meta (Permissions and sharing)
+
+**universal-forwarders/**
+- inputs.conf (Data input configurations)
+- outputs.conf (Forwarding destinations)
+- deploymentclient.conf (Deployment server connection)
+
+## Configuration Guidelines
+
+### Index Management
+- Location: indexer-cluster/master-node/indexes.conf
+- Principle: Indexes are infrastructure, not application-specific
+- Naming: company_purpose_sensitivity
+
+### Application Development  
+- Location: apps/app_name/
+- Contains: Parsing rules, dashboards, searches, alerts
+- Does NOT contain: Index definitions, system settings
 
 ## File Ownership Rules
 
-### What Goes Where
-- indexer-cluster/: Index definitions, cluster settings
-- search-head-cluster/: Search-specific apps, knowledge objects  
-- deployment-server/: Base configurations, server class definitions
-- apps/: Data parsing, field extractions, dashboards, searches
+**indexer-cluster/**: Index definitions, cluster settings, replication factor
 
-### What NOT to Put in Apps
+**search-head-cluster/**: Search-specific apps, knowledge objects shared across SH
+
+**deployment-server/**: Base configurations, server class definitions
+
+**apps/**: Data parsing, field extractions, dashboards, searches
+
+**What NOT to Put in Apps:**
 - Index definitions (indexes.conf)
-- Server settings (server.conf)
+- Server settings (server.conf) 
 - Cluster configurations
 - System-level authentication/authorization
+
+## Development Workflow
+
+1. Clone Repository
+2. Create Feature Branch
+3. Make Changes following directory structure guidelines
+4. Test Locally using Docker environment
+5. Submit PR with peer review required
+6. Deploy via automated pipeline
