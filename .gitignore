@@ -1,0 +1,237 @@
+# =============================================================================
+# Splunk Configuration Repository .gitignore
+# =============================================================================
+
+# Splunk Runtime Files
+# --------------------
+*.log
+*.log.*
+splunkd.log*
+splunkd_stderr.log*
+splunkd_stdout.log*
+audit.log*
+metrics.log*
+license_usage.log*
+
+# Splunk Database Files
+*.db
+*.dat
+*.idx
+*.tsidx
+*.bucketManifest
+*.bloomfilter
+
+# Splunk Cache and Temporary Files
+dispatch/
+fish/
+kvstore/
+run/
+tmp/
+var/
+fishbucket/
+*.tmp
+*.cache
+*.pid
+
+# Sensitive Configuration Files (containing secrets)
+authentication.conf
+authorize.conf
+**/local/user-seed.conf
+**/local/passwd
+**/local/server.conf
+**/local/web.conf
+**/local/deployment*.conf
+
+# Lookups with sensitive data
+lookups/*_passwords.csv
+lookups/*_secrets.csv
+lookups/*_keys.csv
+
+# =============================================================================
+# Development Environment Files
+# =============================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.AppleDouble
+.LSOverride
+Icon
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# =============================================================================
+# Azure DevOps & Git
+# =============================================================================
+
+# Azure DevOps
+.vscode/
+*.vsix
+.azure/
+
+# Git
+.git/
+*.orig
+*.rej
+.gitattributes
+
+# =============================================================================
+# Build & Deployment
+# =============================================================================
+
+# Build artifacts
+build/
+dist/
+target/
+*.tar.gz
+*.zip
+*.tgz
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.env
+.env.local
+.env.*.local
+
+# Kubernetes
+*.kubeconfig
+
+# =============================================================================
+# IDE & Editor Files
+# =============================================================================
+
+# JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# Language Specific
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# =============================================================================
+# Backup & Archive Files
+# =============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+*_backup
+*_old
+*.orig
+
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# =============================================================================
+# Custom Exclusions
+# =============================================================================
+
+# Local development overrides
+local_development/
+dev_overrides/
+*.local
+*_local.*
+
+# Test data and outputs
+test_data/
+test_results/
+coverage/
+*.coverage
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Documentation builds
+docs/_build/
+site/
+
