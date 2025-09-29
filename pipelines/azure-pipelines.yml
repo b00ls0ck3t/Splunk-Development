@@ -46,13 +46,11 @@ stages:
         git config user.name "secureops-ado"
         git config user.email "ci@secureops.com"
 
-        echo "Adding GitHub remote..."
-        git remote remove github 2>/dev/null || true
-        git remote add github "https://x-access-token:${GITHUB_PAT_TOKEN}@github.com/b00ls0ck3t/Splunk-Development.git"
-
-        echo "Pushing all refs (branches + tags) to GitHub..."
-        git push --mirror github
-      displayName: 'Mirror Commits to GitHub (PAT)'
+        echo "Pushing all refs (branches + tags) to GitHub with PAT header..."
+        AUTH_HDR=$(printf "x-access-token:%s" "$GITHUB_PAT_TOKEN" | base64)
+        git -c http.extraheader="AUTHORIZATION: Basic $AUTH_HDR" \
+            push --mirror https://github.com/b00ls0ck3t/Splunk-Development.git
+      displayName: 'Mirror Commits to GitHub (PAT header)'
       env:
         GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
 
