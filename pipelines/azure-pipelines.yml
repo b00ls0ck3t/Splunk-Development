@@ -24,6 +24,7 @@ stages:
   displayName: 'Deploy and Manage Splunk Stack'
   variables:
   - group: Agent-Credentials
+  - group: SPLUNK_VARIABLES
   - name: DOCKER_PROJECT_PATH
     value: '/opt/splunk-docker-dev'
 
@@ -32,6 +33,7 @@ stages:
     displayName: 'Deploying to ${{ parameters.target_component }}'
     steps:
     - checkout: self
+      persistCredentials: true
 
     - script: |
         echo "Shutting down existing Splunk stack..."
@@ -85,3 +87,21 @@ stages:
         docker logs splunk-dev
         exit 1
       displayName: '5. Health Check and Validate Deployment'
+
+    - script: |
+        echo "Mirroring repository to GitHub..."
+        
+        
+        git config --global user.email "azure-pipeline@splunk-dev.local"
+        git config --global user.name "Azure DevOps Pipeline"
+        
+        
+        git remote add github https://$(GITHUB_PAT_TOKEN)@github.com/b00ls0ck3t/Splunk-Development.git 2>/dev/null || true
+        
+        
+        git push github HEAD:main --force
+        
+        echo "Successfully mirrored to GitHub"
+      displayName: '6. Mirror to GitHub'
+      env:
+        GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
