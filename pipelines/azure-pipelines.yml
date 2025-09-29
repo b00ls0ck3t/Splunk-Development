@@ -127,17 +127,24 @@ stages:
         set -e
         echo "Mirroring to GitHub..."
         
+        if [ -z "$(GITHUB_PAT_TOKEN)" ]; then
+          echo "ERROR: GITHUB_PAT_TOKEN is not set"
+          exit 1
+        fi
+        
         git config user.email "azure-pipeline@automated.local"
         git config user.name "Azure Pipeline Bot"
         
         COMMIT_SHA=$(git rev-parse HEAD)
         echo "Current commit: $COMMIT_SHA"
         
+        GITHUB_URL="https://$(GITHUB_PAT_TOKEN)@github.com/b00ls0ck3t/Splunk-Development.git"
+        
         git remote remove github 2>/dev/null || true
-        git remote add github https://$(GITHUB_PAT_TOKEN)@github.com/b00ls0ck3t/Splunk-Development.git
+        git remote add github "$GITHUB_URL"
         
         echo "Pushing commit $COMMIT_SHA to GitHub main branch..."
-        git push github $COMMIT_SHA:refs/heads/main --force
+        GIT_TERMINAL_PROMPT=0 git push github $COMMIT_SHA:refs/heads/main --force
         
         echo "✓ Successfully mirrored to GitHub"
       displayName: 'Mirror to GitHub'
