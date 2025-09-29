@@ -124,19 +124,29 @@ stages:
         displayName: 'Health Check and Validate'
 
     - script: |
+        echo "Checking variable access..."
+        if [ -z "$GITHUB_PAT_TOKEN" ]; then
+          echo "ERROR: GITHUB_PAT_TOKEN is EMPTY or NOT SET"
+          echo "This is likely an Azure DevOps permissions issue."
+          echo "Please check:"
+          echo "1. Pipelines → Library → SPLUNK_VARIABLES → Pipeline permissions"
+          echo "2. Ensure this pipeline has access to the variable group"
+          echo "3. Verify GITHUB_PAT_TOKEN exists in the variable group"
+          exit 1
+        else
+          echo "✓ GITHUB_PAT_TOKEN is set (length: ${#GITHUB_PAT_TOKEN} characters)"
+        fi
+      displayName: 'Verify Variable Access'
+      env:
+        GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
+
+    - script: |
         set -e
         echo "Testing GitHub PAT token..."
         
-        if [ -z "$GITHUB_PAT_TOKEN" ]; then
-          echo "ERROR: GITHUB_PAT_TOKEN is not set"
-          exit 1
-        fi
-        
-        echo "Token is set (length: ${#GITHUB_PAT_TOKEN} characters)"
-        
         echo "Testing GitHub API authentication..."
         HTTP_CODE=$(curl -s -o /tmp/github_response.json -w "%{http_code}" \
-          -H "Authorization: token $GITHUB_PAT_TOKEN" \
+          -H "Authorization: Bearer $GITHUB_PAT_TOKEN" \
           https://api.github.com/user)
         
         echo "HTTP Response Code: $HTTP_CODE"
@@ -153,13 +163,14 @@ stages:
         
         echo "Testing repository access..."
         HTTP_CODE=$(curl -s -o /tmp/repo_response.json -w "%{http_code}" \
-          -H "Authorization: token $GITHUB_PAT_TOKEN" \
+          -H "Authorization: Bearer $GITHUB_PAT_TOKEN" \
           https://api.github.com/repos/b00ls0ck3t/Splunk-Development)
         
         echo "Repo access HTTP Code: $HTTP_CODE"
         
         if [ "$HTTP_CODE" -eq 200 ]; then
           echo "✓ Repository access confirmed"
+          cat /tmp/repo_response.json | grep -E '"permissions"' || true
         else
           echo "✗ Cannot access repository"
           cat /tmp/repo_response.json
