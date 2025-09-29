@@ -34,6 +34,18 @@ stages:
     - checkout: self
       persistCredentials: true
 
+    # Mirror commits to GitHub using service connection
+    - checkout: git://personal github
+      displayName: 'Mirror Commits to GitHub'
+      persistCredentials: true
+      clean: false
+      fetchDepth: 0
+
+    - script: |
+        echo "Pushing mirror to GitHub..."
+        git push --mirror origin
+      displayName: 'Push Mirror to GitHub'
+
     # Conditional restart: Shutdown
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
