@@ -34,61 +34,69 @@ stages:
     - checkout: self
       persistCredentials: true
 
-    # Conditional restart: Shutdown
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
+          set -e
           echo "Shutting down existing Splunk stack..."
           cd $(DOCKER_PROJECT_PATH)
           docker compose down --remove-orphans || echo "No existing stack found. Continuing..."
-        displayName: '1. Shutdown Existing Docker Stack'
+        displayName: 'Shutdown Docker Stack'
 
     - script: |
+        set -e
         echo "Syncing repository to project directory..."
         cp -R ./* $(DOCKER_PROJECT_PATH)/
-      displayName: '2. Sync Repository to Project Directory'
+        echo "Sync completed successfully"
+      displayName: 'Sync Repository'
 
-    # Conditional restart: Launch
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
+          set -e
           echo "Launching new Splunk stack..."
           cd $(DOCKER_PROJECT_PATH)
           docker compose up -d
-        displayName: '3. Launch New Docker Stack'
+          echo "Docker stack launched successfully"
+        displayName: 'Launch Docker Stack'
 
-    # Component-specific configuration deployment
     - ${{ if eq(parameters.target_component, 'splunk_dev') }}:
       - script: |
+          set -e
           echo "Deploying Splunk (dev) configurations..."
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
-        displayName: '4. Deploy Splunk (dev) Configurations'
+          echo "Configuration deployment completed"
+        displayName: 'Deploy Splunk Dev Config'
         env:
           AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.target_component, 'deployment_server') }}:
       - script: |
+          set -e
           echo "Deploying Deployment Server configurations..."
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
-        displayName: '4. Deploy Deployment Server Configurations'
+          echo "Configuration deployment completed"
+        displayName: 'Deploy Deployment Server Config'
         env:
           AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.target_component, 'all_components') }}:
       - script: |
+          set -e
           echo "Deploying configurations for all components..."
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/ || echo "No deployment server configs found"
           echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/
-        displayName: '4. Deploy All Component Configurations'
+          echo "Configuration deployment completed"
+        displayName: 'Deploy All Component Configs'
         env:
           AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
-    # Health check only runs if services were restarted
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
+          set -e
           echo "Performing health check on Splunk container..."
           timeout=300
           interval=10
@@ -99,17 +107,39 @@ stages:
             if [[ $status == *" (healthy)"* ]]; then
               echo "Splunk container is healthy."
               echo "Validating deployment..."
-              docker exec splunk-dev ls -la /opt/splunk/etc/apps/ | grep custom_logging && echo "custom_logging app deployed" || (echo "custom_logging not found" && exit 1)
-              docker exec splunk-dev ls -la /opt/splunk/etc/system/local/ | grep indexes.conf && echo "indexes.conf deployed" || (echo "indexes.conf not found" && exit 1)
+              docker exec splunk-dev ls -la /opt/splunk/etc/apps/ | grep custom_logging && echo "✓ custom_logging app deployed" || (echo "✗ custom_logging not found" && exit 1)
+              docker exec splunk-dev ls -la /opt/splunk/etc/system/local/ | grep indexes.conf && echo "✓ indexes.conf deployed" || (echo "✗ indexes.conf not found" && exit 1)
               echo "Deployment validation completed successfully."
               exit 0
             fi
-            echo "Waiting for Splunk to become healthy... (Status: $status)"
+            echo "Waiting for Splunk to become healthy... (Status: $status, Elapsed: ${elapsed}s)"
             sleep $interval
             elapsed=$((elapsed + interval))
           done
           
-          echo "Timeout reached. Splunk container did not become healthy."
+          echo "ERROR: Timeout reached. Splunk container did not become healthy after ${timeout}s"
+          echo "Container logs:"
           docker logs splunk-dev
           exit 1
-        displayName: '5. Health Check and Validate Deployment'
+        displayName: 'Health Check and Validate'
+
+    - script: |
+        set -e
+        echo "Mirroring to GitHub..."
+        
+        git config user.email "azure-pipeline@automated.local"
+        git config user.name "Azure Pipeline Bot"
+        
+        COMMIT_SHA=$(git rev-parse HEAD)
+        echo "Current commit: $COMMIT_SHA"
+        
+        git remote remove github 2>/dev/null || true
+        git remote add github https://$(GITHUB_PAT_TOKEN)@github.com/b00ls0ck3t/Splunk-Development.git
+        
+        echo "Pushing commit $COMMIT_SHA to GitHub main branch..."
+        git push github $COMMIT_SHA:refs/heads/main --force
+        
+        echo "✓ Successfully mirrored to GitHub"
+      displayName: 'Mirror to GitHub'
+      env:
+        GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
