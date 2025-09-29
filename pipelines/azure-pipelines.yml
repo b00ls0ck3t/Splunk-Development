@@ -34,26 +34,6 @@ stages:
     - checkout: self
       persistCredentials: true
 
-    # Mirror commits to GitHub using PAT from variable group (GITHUB_PAT_TOKEN)
-    - script: |
-        set -euo pipefail
-
-        echo "Preparing full history for mirroring..."
-        git fetch --prune --unshallow || true
-        git fetch --tags --prune
-
-        echo "Configuring Git identity..."
-        git config user.name "secureops-ado"
-        git config user.email "ci@secureops.com"
-
-        echo "Pushing all refs (branches + tags) to GitHub with PAT header..."
-        AUTH_HDR=$(printf "x-access-token:%s" "$GITHUB_PAT_TOKEN" | base64)
-        git -c http.extraheader="AUTHORIZATION: Basic $AUTH_HDR" \
-            push --mirror https://github.com/b00ls0ck3t/Splunk-Development.git
-      displayName: 'Mirror Commits to GitHub (PAT header)'
-      env:
-        GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
-
     # Conditional restart: Shutdown
     - ${{ if eq(parameters.restart_services, true) }}:
       - script: |
