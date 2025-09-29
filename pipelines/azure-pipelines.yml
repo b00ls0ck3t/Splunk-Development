@@ -34,17 +34,27 @@ stages:
     - checkout: self
       persistCredentials: true
 
-    # Mirror commits to GitHub using service connection
-    - checkout: git://personal github
-      displayName: 'Mirror Commits to GitHub'
-      persistCredentials: true
-      clean: false
-      fetchDepth: 0
-
+    # Mirror commits to GitHub using PAT from variable group (GITHUB_PAT_TOKEN)
     - script: |
-        echo "Pushing mirror to GitHub..."
-        git push --mirror origin
-      displayName: 'Push Mirror to GitHub'
+        set -euo pipefail
+
+        echo "Preparing full history for mirroring..."
+        git fetch --prune --unshallow || true
+        git fetch --tags --prune
+
+        echo "Configuring Git identity..."
+        git config user.name "secureops-ado"
+        git config user.email "ci@secureops.com"
+
+        echo "Adding GitHub remote..."
+        git remote remove github 2>/dev/null || true
+        git remote add github "https://x-access-token:${GITHUB_PAT_TOKEN}@github.com/b00ls0ck3t/Splunk-Development.git"
+
+        echo "Pushing all refs (branches + tags) to GitHub..."
+        git push --mirror github
+      displayName: 'Mirror Commits to GitHub (PAT)'
+      env:
+        GITHUB_PAT_TOKEN: $(GITHUB_PAT_TOKEN)
 
     # Conditional restart: Shutdown
     - ${{ if eq(parameters.restart_services, true) }}:
