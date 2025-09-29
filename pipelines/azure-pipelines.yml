@@ -190,11 +190,17 @@ stages:
         COMMIT_SHA=$(git rev-parse HEAD)
         echo "Current commit: $COMMIT_SHA"
         
+        echo "Fetching full history from Azure DevOps..."
+        git fetch --unshallow || echo "Repository already has full history"
+        
         git remote remove github 2>/dev/null || true
         git remote add github "https://${GITHUB_PAT_TOKEN}@github.com/b00ls0ck3t/Splunk-Development.git"
         
-        echo "Pushing commit $COMMIT_SHA to GitHub main branch..."
-        git push github $COMMIT_SHA:refs/heads/main --force
+        echo "Fetching existing GitHub history..."
+        git fetch github main || echo "GitHub main branch doesn't exist yet"
+        
+        echo "Pushing to GitHub main branch..."
+        git push github HEAD:refs/heads/main --force
         
         echo "✓ Successfully mirrored to GitHub"
       displayName: 'Mirror to GitHub'
