@@ -59,30 +59,32 @@ stages:
     - ${{ if eq(parameters.target_component, 'splunk_dev') }}:
       - script: |
           echo "Deploying Splunk (dev) configurations..."
-          # NOTE: Ensure passwordless sudo is configured for the agent user:
-          # Run 'sudo visudo' and add: agent_user ALL=(ALL) NOPASSWD: /bin/cp, /bin/chown
-          sudo cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
-          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
-          sudo chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/
         displayName: '4. Deploy Splunk (dev) Configurations'
+        env:
+          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.target_component, 'deployment_server') }}:
       - script: |
           echo "Deploying Deployment Server configurations..."
-          # Add deployment server specific configuration steps here
-          sudo cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
-          sudo chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/deployment-server/
         displayName: '4. Deploy Deployment Server Configurations'
+        env:
+          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     - ${{ if eq(parameters.target_component, 'all_components') }}:
       - script: |
           echo "Deploying configurations for all components..."
-          # Deploy to all components
-          sudo cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
-          sudo cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
-          sudo cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/ || echo "No deployment server configs found"
-          sudo chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r apps/* $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/apps/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp indexer-cluster/master-node/indexes.conf $(DOCKER_PROJECT_PATH)/volumes/splunk-etc/system/local/
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S cp -r deployment-server/* $(DOCKER_PROJECT_PATH)/volumes/deployment-server/ || echo "No deployment server configs found"
+          echo "$(AGENT_SUDO_PASSWORD)" | sudo -S chown -R 41812:41812 $(DOCKER_PROJECT_PATH)/volumes/
         displayName: '4. Deploy All Component Configurations'
+        env:
+          AGENT_SUDO_PASSWORD: $(AGENT_SUDO_PASSWORD)
 
     # Health check only runs if services were restarted
     - ${{ if eq(parameters.restart_services, true) }}:
